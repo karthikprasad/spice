@@ -17,3 +17,10 @@ The program is written in python
 python codeBlue.py
 ```
 
+### References
+[1] Spectral Learning: https://www.cs.upc.edu/~carreras/pubs/2013-mlj-bclq.pdf
+[2] Gibbs Sampling
+[3] Shibata, C., & Yoshinaka, R. (2012). Marginalizing Out Transition Probabilities for Several Subclasses of PFAs. Journal of Machine Learning Research Workshop and Conference Proceedings, Vol. 21: ICGI 2012: 259-263.
+Pautomac Winning team: http://jmlr.csail.mit.edu/proceedings/papers/v21/shibata12a/shibata12a.pdf
+
+
