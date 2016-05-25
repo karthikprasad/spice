@@ -6,7 +6,7 @@ user_id = '81'
 
 # name of this submission (no space or special character)
 
-name = "hxxmx100"
+name = "hxxmx50"
 
 train_file = 'data/1.spice.train'
 prefix_file = 'data/1.spice.public.test'
@@ -16,7 +16,7 @@ import numpy as np
 from sys import *
 from sklearn.externals import joblib
 
-model = joblib.load("learnedModels/hmm100_p1.pkl")
+model = joblib.load("learnedModels/hmm50_p1.pkl")
 
 def hmmRank(prefix, alphabet):
 	score=[]
