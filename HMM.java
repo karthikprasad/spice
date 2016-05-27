@@ -68,42 +68,33 @@ public class HMM {
 	}
 
 	public void train(int[] inputSequence) throws Exception {
-		double[][] forwardMatrix;
-		double[][] backwardMatrix;
+
 		for (int itr = 0; itr < maxiter; itr++) {
+			System.out.println(itr);
 			double tmpInitial[] = new double[latentStates];
 			double tmpTransition[][] = new double[latentStates][latentStates];
 			double tmpEmission[][] = new double[latentStates][emissionStates];
 
 			/* Find Forward and Backward probabilities */
-			forwardMatrix = findForwardMatrix(inputSequence);
-			//printMatrix(forwardMatrix);
-			backwardMatrix = findBackWardMatrix(inputSequence);
-			//System.out.println("Backward");
-
+			MatrixContainer M = findForwardBackwardMatrix(inputSequence); 
 
 			/* re-estimation of initial state probabilities */
 			for (int i = 0; i < latentStates; i++)
-				tmpInitial[i] = getGamma(i, 0, inputSequence, forwardMatrix, backwardMatrix);
-			//System.out.println("pi1 values");
-			//for (double d : pi)
-				//System.out.println(d);
+				tmpInitial[i] = getGamma(i, 0, inputSequence, M.getForwardMatrix(), M.getBackwardMatrix());
 
-			if (true)
-				//throw new Exception("Bros before hoes");
-
-				/* Estimate transition Matrix */ 
-				for (int i = 0; i < latentStates; i++) {
-					for (int j = 0; j < latentStates; j++) {
-						double sumTop = 0;
-						double sumBottom = 0;
-						for (int t = 0; t <= inputSequence.length - 1; t++) {
-							sumTop += p(t, i, j, inputSequence, forwardMatrix, backwardMatrix);
-							sumBottom += getGamma(i, t, inputSequence, forwardMatrix, backwardMatrix);
-						}
-						tmpTransition[i][j] = divide(sumTop, sumBottom);
+			/* Estimate transition Matrix */ 
+			for (int i = 0; i < latentStates; i++) {
+				for (int j = 0; j < latentStates; j++) {
+					double sumTop = 0;
+					double sumBottom = 0;
+					for (int t = 0; t <= inputSequence.length - 1; t++) {
+						sumTop += getZeta(t, i, j, inputSequence, M.getForwardMatrix(), M.getBackwardMatrix());
+						for (int jj = 0; jj < latentStates; jj++) 
+							sumBottom += getZeta(t, i, jj, inputSequence, M.getForwardMatrix(), M.getBackwardMatrix());
 					}
+					tmpTransition[i][j] = divide(sumTop, sumBottom);
 				}
+			}
 
 			/* Estimate emission Matrix */
 			for (int i = 0; i < latentStates; i++) {
@@ -111,7 +102,7 @@ public class HMM {
 					double sumTop = 0;
 					double sumBottom = 0;
 					for (int t = 0; t <= inputSequence.length - 1; t++) {
-						double g = getGamma(i, t, inputSequence, forwardMatrix, backwardMatrix);
+						double g = getGamma(i, t, inputSequence, M.getForwardMatrix(), M.getBackwardMatrix());
 						sumTop += g * (k == inputSequence[t] ? 1 : 0);
 						sumBottom += g;
 					}
@@ -120,7 +111,6 @@ public class HMM {
 			}
 			if(findDifference(transMat, tmpTransition, emissionMat, tmpEmission) < tolerance) {
 				this.converged = true;
-				//print();
 				System.out.println("Batch converged in " + itr + " steps.");
 				break;
 			}
@@ -129,7 +119,6 @@ public class HMM {
 			emissionMat = tmpEmission;
 		}
 	}
-
 
 	private double findDifference(double[][] a2, double[][] a1, double[][] b2, double[][] b1) {
 		double diff = 0;
@@ -144,36 +133,48 @@ public class HMM {
 		return diff;
 	}
 
-	/** calculation of Forward-Variables f(i,t) for state i at time
-      t for output sequence O with the current HMM parameters
-      @param o the output sequence O
-      @return an array f(i,t) over states and times, containing
-              the Forward-variables. 
-	 */
-	public double[][] findForwardMatrix(int[] o) {
-		int T = o.length;
-		double[][] fwd = new double[latentStates][T];
-
-		/* initialization (time 0) */
-		for (int i = 0; i < latentStates; i++)
+	public MatrixContainer findForwardBackwardMatrix(int[] o) {
+		MatrixContainer M = new MatrixContainer();
+		double[][] fwd = new double[latentStates][o.length];
+		double[] scaling = new double[o.length];
+		for (int i = 0; i < latentStates; i++) {
 			fwd[i][0] = pi[i] * emissionMat[i][o[0]];
-
-		/* induction */
-		for (int t = 0; t <= T-2; t++) {
+			scaling[0] += fwd[i][0];
+		}
+		scaling[0] = 1/scaling[0]; 
+		for (int i = 0; i < latentStates; i++)
+			fwd[i][0] *= scaling[0];
+		for (int t = 0; t <= o.length-2; t++) {
 			for (int j = 0; j < latentStates; j++) {
 				fwd[j][t+1] = 0;
 				for (int i = 0; i < latentStates; i++)
 					fwd[j][t+1] += (fwd[i][t] * transMat[i][j]);
 				fwd[j][t+1] *= emissionMat[j][o[t+1]];
-				//System.out.println(fwd[j][t+1]);
+				scaling[t+1] += fwd[j][t+1];
+			}
+			scaling[t+1] = 1/scaling[t+1];
+			for (int i = 0; i < latentStates; i++)
+				fwd[i][t+1] *= scaling[t+1];
+		}
+		M.setForwardMatrix(fwd);
+		double[][] bwd = new double[latentStates][o.length];
+		for (int i = 0; i < latentStates; i++)
+			bwd[i][o.length-1] = scaling[o.length-1];
+
+		for (int t = o.length - 2; t >= 0; t--) {
+			for (int i = 0; i < latentStates; i++) {
+				bwd[i][t] = 0;
+				for (int j = 0; j < latentStates; j++)
+					bwd[i][t] += (bwd[j][t+1] * transMat[i][j] * emissionMat[j][o[t+1]]);
+				bwd[i][t] *= scaling[t]; 
 			}
 		}
-
-		return fwd;
+		M.setBackwardMatrix(bwd);
+		return M;
 	}
 
 	public double getSequenceLikelihood(int[] o) {
-		double[][] fwd = findForwardMatrix(o);
+		double[][] fwd = findForwardBackwardMatrix(o).getForwardMatrix();
 		double prob = 0;
 		for(int i = 0; i < latentStates; i++) {
 			prob += fwd[i][o.length-1];
@@ -181,46 +182,23 @@ public class HMM {
 		return prob;
 	}
 
-	public double[][] findBackWardMatrix(int[] o) {
-		double[][] bwd = new double[latentStates][o.length];
-
-		/* initialization (time 0) */
-		for (int i = 0; i < latentStates; i++)
-			bwd[i][o.length-1] = 1;
-
-		/* induction */
-		for (int t = o.length - 2; t >= 0; t--) {
-			for (int i = 0; i < latentStates; i++) {
-				bwd[i][t] = 0;
-				for (int j = 0; j < latentStates; j++)
-					bwd[i][t] += (bwd[j][t+1] * transMat[i][j] * emissionMat[j][o[t+1]]);
-			}
-		}
-		return bwd;
-	}
-
-	public double p(int t, int i, int j, int[] o, double[][] fwd, double[][] bwd) {
+	public double getZeta(int t, int i, int j, int[] o, double[][] fwd, double[][] bwd) {
 		double num;
 		if (t == o.length - 1)
 			num = fwd[i][t] * transMat[i][j];
 		else
-			num = fwd[i][t] * transMat[i][j] * emissionMat[j][o[t+1]] * bwd[j][t+1];
-
+			num = fwd[i][t] * transMat[i][j] * emissionMat[j][o[t+1]] * bwd[j][t+1] ;
 		double denom = 0;
-
 		for (int k = 0; k < latentStates; k++)
 			denom += (fwd[k][t] * bwd[k][t]);
-
 		return divide(num, denom);
 	}
 
 	public double getGamma(int i, int t, int[] o, double[][] fwd, double[][] bwd) {
 		double numerator = fwd[i][t] * bwd[i][t];
 		double denominator = 0;
-
 		for (int j = 0; j < latentStates; j++)
 			denominator += fwd[j][t] * bwd[j][t];
-
 		return divide(numerator, denominator);
 	}
 
@@ -228,7 +206,6 @@ public class HMM {
 		DecimalFormat fmt = new DecimalFormat();
 		fmt.setMinimumFractionDigits(5);
 		fmt.setMaximumFractionDigits(5);
-
 		for (int i = 0; i < latentStates; i++)
 			System.out.println("pi(" + i + ") = " + fmt.format(pi[i]));
 		System.out.println();
@@ -253,8 +230,11 @@ public class HMM {
 	public double divide(double n, double d) {
 		if (n == 0)
 			return 0;
-		else
+		else {
+			if (d == 0)
+				System.out.println("You are dividing by Zero");
 			return n / d;
+		}
 	}
 
 	public double[] getRand(int n) {

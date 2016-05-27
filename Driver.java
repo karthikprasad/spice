@@ -13,8 +13,8 @@ import java.util.List;
 public class Driver {
 
 	//Just change these two constants for a submission
-	private static final String PROBLEM_NUMBER = "0";
-	private static final String SUBMISSION_NAME = "testtrain4";
+	private static final String PROBLEM_NUMBER = "1";
+	private static final String SUBMISSION_NAME = "testtrain11";
 
 	// Team and project specific constants 
 	private static final String TEAM_NUMBER = "81";
@@ -23,8 +23,8 @@ public class Driver {
 	private static final String URL_BASE = "http://spice.lif.univ-mrs.fr/submit.php?user=" + TEAM_NUMBER + "&problem=" + PROBLEM_NUMBER + "&submission=" + SUBMISSION_NAME + "&";
 
 	//HMM Tuning parameters
-	private static final int BATCH_SIZE = 25;
-	private static final int HIDDEN_STATES = 5; 
+	private static final int BATCH_SIZE = 5;
+	private static final int HIDDEN_STATES = 21; 
 	private static final int MAX_ITERATION = 5000;
 	private static final int RETRY_PARAMETER = 50;
 	private static final double TOLERANCE = Math.exp(-4); 
@@ -122,7 +122,11 @@ public class Driver {
 		}
 		in.close();
 		while (con.getResponseCode() == HttpURLConnection.HTTP_OK) {
-			rankString = getRankingString(response.toString(), hmm);;
+			if(response.toString().split(" ").equals("[Error]")) {
+				System.out.println(response.toString());
+				break;
+			}
+			rankString = getRankingString(response.toString(), hmm);
 			prefixNumber++;
 			System.out.println("Prefix number: " + prefixNumber  + " Ranking: " + rankString + " Prefix: " + response.toString());
 			if (reader != null) {
