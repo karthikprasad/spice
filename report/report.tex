@@ -1,34 +1,33 @@
 \documentclass[letterpaper]{article}
 \usepackage{proceed2e}
 \usepackage[margin=1in]{geometry}
-
-% Set the typeface to Times Roman
 \usepackage{times}
 \usepackage{graphicx}
-
 \title{Discrete Time Discrete Symbol Sequence Prediction Using HMM}
-
 \author{Zhengli Zhao, Karthik Prasad, Abhisaar Sharma} 
-
 \begin{document}
-
 \maketitle
-
 \begin{abstract}
-This paper describes our graphical-model approach to the data-oriented project “SPiCe” (The Sequence PredictIction ChallengE). Hidden Markov model (HMM) is a statistical Markov model in which the system being modelled is assumed to be a Markov process with latent states and can be presented as the simplest Bayesian network. We show our approach in modelling the problem as a HMM and using learning techniques like Baum Welch algorithm and Spectral learning methods to learn the parameters of this graphical model and make predictions.
+This paper describes our graphical-model approach to the data-oriented project “SPiCe” (Sequence PredictIction ChallengE). Hidden Markov model (HMM) is a statistical Markov model in which the system being modelled is assumed to be a Markov process with latent states and can be presented as the simplest Bayesian network. We show our approach in modelling the problem as a HMM and using learning techniques like Baum-Welch and Spectral learning to learn the parameters of this graphical model and make predictions.
 
 \end{abstract}
 
 \section{Introduction}
-The Sequence PredictIction ChallengE (SPiCe) is a competition where the aim is to learn a model that allows the ranking of potential next symbols for a given prefix and submitting a ranking of the 5 most probable next symbols. Training datasets consist of variable length sequences with a fixed number of symbols. The competition uses real-world data from different fields like Natural Language Processing, Biology, Signal Processing, Software Verification.
+The Sequence PredictIction ChallengE (SPiCe) is a competition where the aim is to learn a model that allows the ranking of potential next symbols for a given prefix and submitting a ranking of the 5 most probable next symbols. Training datasets consist of variable length sequences with a fixed number of symbols. The 5 next symbols which we submit is scored on a ranking metric based on normalized discounted cumulative gain.
+
+Let the test set be made of prefixes $y_{1},y_{2},..., y_{M}$ and the next symbols ranking submitted for $i^{th}$ prefix $y_{i}$ is $(\hat{a}^{i}_{1},...,\hat{a}^{i}_{5})$ sorted from more likely to less likely. The program evaluating the submissions has access to to $p(.|y_{i})$, i.e. the target probability distribution of possible next symbols given the prefix $y_{i}$. The NDCG is then
+\begin{center}
+$\displaystyle NDCG_{5}(\hat{a}^{i}_{1},...,\hat{a}^{i}_{5}) = \frac{\sum_{k=1}^{5}\frac{p(\hat{a}_{k}^{i}| y_{i})}{log_{2}(k+1)}}{\sum_{k=1}^{5}\frac{p_{k}}{log_{2}(k+1)}} $  
+\end{center}
+
+The competition uses real-world data from different fields like Natural Language Processing, Biology, Signal Processing, Software Verification. 
+
+We can use a Hidden Markov Model to model this problem, where the training sequences can be treated as discrete time observables (emission variables) and the unobserved latent states can be used to capture the intrinsic sequence structure. A hidden Markov model can be considered a generalization of a mixture model where the hidden variables which control the mixture component to be selected for each observation, are related through a Markov process rather than independent of each other. 
 
 \begin{figure}[h]
 \includegraphics[scale=0.2]{"hmm"}
 \caption{A hidden Markov model}
 \end{figure}
-
-We can use a Hidden Markov Model to model this problem, where the training sequences can be treated as discrete time observables (emission variables) and the unobserved latent states can be used to capture the intrinsic sequence structure. A hidden Markov model can be considered a generalization of a mixture model where the hidden variables which control the mixture component to be selected for each observation, are related through a Markov process rather than independent of each other. 
-
 
 \section{Methodology}
 
