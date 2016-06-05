@@ -3,8 +3,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,8 +15,8 @@ import java.util.List;
 public class Driver {
 
 	//Just change these two constants for a submission
-	private static final String PROBLEM_NUMBER = "1";
-	private static final String SUBMISSION_NAME = "testtrain11";
+	private static final String PROBLEM_NUMBER = "2";
+	private static final String SUBMISSION_NAME = "testprob2_11_02";
 
 	// Team and project specific constants 
 	private static final String TEAM_NUMBER = "81";
@@ -23,9 +25,9 @@ public class Driver {
 	private static final String URL_BASE = "http://spice.lif.univ-mrs.fr/submit.php?user=" + TEAM_NUMBER + "&problem=" + PROBLEM_NUMBER + "&submission=" + SUBMISSION_NAME + "&";
 
 	//HMM Tuning parameters
-	private static final int BATCH_SIZE = 5;
-	private static final int HIDDEN_STATES = 21; 
-	private static final int MAX_ITERATION = 5000;
+	private static final int BATCH_SIZE = 25;
+	private static final int HIDDEN_STATES = 5; 
+	private static final int MAX_ITERATION = 250;
 	private static final int RETRY_PARAMETER = 50;
 	private static final double TOLERANCE = Math.exp(-4); 
 	private static final double LEARNING_RATE = 0.1; // unused for now
@@ -34,11 +36,60 @@ public class Driver {
 	public static void main(String args[]) throws IOException {
 
 		// Get a trained hmm
-		HMM hmm = train(); 
+		//HMM hmm = train(); 
 
+		// Load a presaved HMM
+		HMM hmmFile = loadHmmFromFile("TrainedHMMProblem2_11hs_15bs");
+		hmmFile.print();
 		// Predict using this hmm
-		predictDriver(hmm);
+		predictDriver(hmmFile);
 
+	}
+
+	private static HMM loadHmmFromFile(String filename) throws IOException {
+		BufferedReader reader = null;
+		try {
+			File file = new File(filename);
+			reader = new BufferedReader(new FileReader(file));
+			reader.readLine(); // Skip first line
+			String text = reader.readLine();
+			int numStates = Integer.valueOf(text.split(" ")[0]);
+			numSymbols = Integer.valueOf(text.split(" ")[1]);
+			double tmpInitial[] = new double[numStates];
+			double tmpTransition[][] = new double[numStates][numStates];
+			double tmpEmission[][] = new double[numStates][numSymbols];
+
+			for (int i = 0; i < numStates; i++) {
+				text = reader.readLine();
+				tmpInitial[i] = Double.valueOf(text);
+			}
+			for (int i = 0; i < numStates; i++) {
+				text = reader.readLine();
+				String[] vals = text.split(" ");
+				for (int j = 0; j < numStates; j++) {
+					tmpTransition[i][j] = Double.valueOf(vals[j]); 
+				}
+			}
+			for (int i = 0; i < numStates; i++) {
+				text = reader.readLine();
+				String[] vals = text.split(" ");
+				for (int j = 0; j < numSymbols; j++) {
+					tmpEmission[i][j] = Double.valueOf(vals[j]); 
+				}
+			}
+			HMM newHmm = new HMM(numStates, numSymbols, MAX_ITERATION, TOLERANCE);
+			newHmm.setPi(tmpInitial);
+			newHmm.setA(tmpTransition);
+			newHmm.setB(tmpEmission);
+			return newHmm;
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (reader!=null) {
+				reader.close();
+			}
+		}
+		return null;
 	}
 
 	private static HMM train() throws IOException {
@@ -155,7 +206,7 @@ public class Driver {
 
 	private static String getRankingString(String firstFilePrefix, HMM hmm) {
 		String[] l = firstFilePrefix.split(" ");
-		int seqLen = Integer.parseInt(l[0]);
+		int seqLen = l.length -1;
 		int[] obs = new int[l.length];
 		String prefixString = new String();
 		for (int j = 0; j < seqLen ; j++) {
@@ -206,3 +257,4 @@ public class Driver {
 		return r; 
 	}
 }
+
