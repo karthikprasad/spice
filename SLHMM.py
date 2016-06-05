@@ -1,9 +1,11 @@
 #! /usr/bin/python
 # @author: karthik
 # @date: 20 May 2016
+# @date: 04 Jun 2016
 
 import cPickle
 import numpy as np
+import urllib2 as ul
 
 class HMM(object):
     def __init__(self, num_hidden_states, num_observed_states,
@@ -220,24 +222,104 @@ class HMM(object):
             model = cPickle.load(fin)
             return model
 
+
+def order_probabilities(probability_dict):
+    tuple_list = [(k,v) for k,v in probability_dict.iteritems()]
+    tuple_list.sort(key=lambda x: x[1], reverse=True)  # sort on the probability value
+    ordered_seq = [k for k,v in tuple_list]
+    return ordered_seq
+
+def get_ranking(probabilities):
+    ranked_order = order_probabilities(probabilities)[:5]
+    #replace the end of state sequence with -1
+    eos_state = max(ranked_order)
+    ranked_order = [str(x) if x != eos_state else str(-1) for x in ranked_order]
+    ranking_str = '%20'.join(ranked_order)
+    return ranking_str
+
+
 def load_training_data(training_file):
     lines = []
     with open(training_file, 'r') as f:
         lines = f.readlines()
     num_observed_states = int(lines[0].strip().split()[-1]) + 1
+    eos_state = str(num_observed_states - 1)  # the end of a sequence is represented by another state
     lines = lines[1:]
     sequences = []
     for line in lines:
-        sequence = map(np.float, (line.strip()+' -1').split()[1:])
+        sequence = map(np.int, (line.strip() + ' ' + eos_state).split()[1:])
         sequences.append(np.asarray(sequence))
     return sequences, num_observed_states
 
 
+def make_submission(problem_num=0):
+    problem_num = str(problem_num)
+    user_id = '81'
+    name = 'thedarklord'
+    url_base = 'http://spice.lif.univ-mrs.fr/submit.php?user=' + user_id + \
+                '&problem=' + problem_num + '&submission=' + name + '&'
 
-if __name__ == '__main__':
-    training_file = 'codeBlue/data/0.spice.train'
-    sequences, num_obs_states = load_training_data(training_file)
+    training_file = 'data/' + problem_num + '.spice.train'
+    testing_file  = 'data/' + problem_num + '.spice.public.test'
+
+    # train
+    sequences, num_obs_states = load_training_data(training_file)  # end of sequence state has the maximum number
     model = HMM(num_obs_states, num_obs_states)
     model.fit(sequences)
+
+    def get_prefix_from_file(prefix_file):
+        with open(prefix_file, 'r') as f:
+            line = f.readline()
+        line = line.strip().split()
+        return line
+
+    def get_prefix_sequence(prefix):
+        return map(np.int, prefix[1:])
+
+    def get_submission_url(prefix_num, prefix):
+        prefix_str = '%20'.join(prefix)
+        prefix_sequence = get_prefix_sequence(prefix)
+        probabilities = model.predict(prefix_sequence)
+        ranking_str = get_ranking(probabilities)
+        print 'Prefix number: ' + str(prefix_num) + ' Prefix: ' + ' '.join(prefix) + ' Ranking: ' + ranking_str.replace('%20', ' ')
+        # Create the url with your ranking to get the next prefix
+        url = url_base + 'prefix=' + prefix_str + '&prefix_number=' +\
+            str(prefix_num) + '&ranking=' + ranking_str
+        return url
+
+    # test on first prefix
+    prefix_num = 1
+    prefix = get_prefix_from_file(testing_file)
+    url = get_submission_url(prefix_num, prefix)
+    # initiate submission
+    response = ul.urlopen(url)
+    content = response.read()
+    list_element = content.split()
+    head = str(list_element[0])
+    
+    while head != '[Error]' and head != '[Success]':
+        prefix_num += 1
+        prefix = content[:-1].strip().split()
+        url = get_submission_url(prefix_num, prefix)
+        # initiate submission
+        response = ul.urlopen(url)
+        content = response.read()
+        list_element = content.split()
+        head = str(list_element[0])
+
+    # Post-treatment
+    # The score is the last element of content (in case of a public test set)
+    print content
+    score = list_element[-1]
+    print score
+
+
+if __name__ == '__main__':
+    for i in range(0,9):
+        make_submission(i)
+    # training_file = 'codeBlue/data/0.spice.train'
+    # sequences, num_obs_states = load_training_data(training_file)
+    # model = HMM(num_obs_states, num_obs_states)
+    # model.fit(sequences)
 
 
