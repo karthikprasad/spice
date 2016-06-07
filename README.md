@@ -7,14 +7,18 @@ This code is for Sequence PredictIction ChallengE (SPiCe) which aims to guess th
 The primary aim of this project will be understand the different techniques that can be applied to this graphical model and work towards enhancing the accuracy of the prediction. 
 
 We have tested the following techniques:
-- Spectral Baseline
-- 3 gram
-- Gibbs sampling
+- Baum Welch Algorithm
+- Spectral learning methods
 
 ### Executing
-The program is written in python 
+The program is written in python and java
 ```sh
 python codeBlue.py
+```
+
+```sh
+javac Driver.java
+java Driver
 ```
 
 ### References
