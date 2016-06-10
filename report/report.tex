@@ -1,118 +1,132 @@
 \documentclass[letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{proceed2e}
+
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{proceed2e}
-\usepackage[margin=1in]{geometry}
-\usepackage{times}
+\usepackage{csquotes}
 \usepackage{graphicx}
-\title{Discrete Time Discrete Symbol Sequence Prediction Using HMM}
-\author{Zhengli Zhao, Karthik Prasad, Abhisaar Sharma} 
+\usepackage{hyperref}
+\usepackage{times}
+
+\title{Discrete-Time Discrete-Symbol Sequence Prediction Using Graphical Models}
+\author{Abhisaar Sharma \\ abhisaas@uci.edu \And Karthik Prasad \\ prasadkr@uci.edu \And Zhengli Zhao \\ zhengliz@uci.edu}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-	This paper describes our graphical-model approach to the data-oriented project “SPiCe” (Sequence PredictIction ChallengE). Hidden Markov model (HMM) is a statistical Markov model in which the system being modelled is assumed to be a Markov process with latent states and can be presented as the simplest Bayesian network. We show our approach in  the problem as a HMM and using learning techniques like Baum-Welch and Spectral learning to learn the parameters of this graphical model and make predictions. The predictions generated from our approach currently stands as rank 3 among all the participants on the leader-board.
+	This paper describes our graphical-model approach to the data-oriented project “SPiCe” (Sequence PredictIction ChallengE)\footnote{\href{http://spice.lif.univ-mrs.fr/}{Webpage: http://spice.lif.univ-mrs.fr/}}. Hidden Markov model (HMM) is a statistical Markov model in which the system being modeled is assumed to be a Markov process with latent states and can be presented as the simplest Bayesian network. We show our approach in modeling the problem as a HMM and using Baum-Welch Expectation Maximization technique and Spectral learning techniques to learn the parameters of this graphical model and make predictions. Further, model this problem as a Probabilistic Weighted Finite Automata using spectral methods. The predictions generated from our approach stands third among all the participants on the leader-board for the problems attempted.
+					
 \end{abstract}
 
 \section{Introduction}
-The Sequence PredictIction ChallengE (SPiCe) is a competition where the aim is to learn a model that allows the ranking of potential next symbols for a given prefix and submitting a ranking of the 5 most probable next symbols. Training datasets consist of variable length sequences with a fixed number of symbols. The 5 next symbols which we submit is scored on a ranking metric based on normalized discounted cumulative gain.
+The Sequence PredictIction ChallengE (SPiCe) is a competition where the aim is to learn a model that predicts the next symbol of a given prefix as a ranked order of five most probable next symbols. Training datasets consist of variable length sequences with a fixed number of symbols. The competition uses real-world data from different fields (Natural Language Processing, Biology, Signal Processing, Software Verification, etc.) and synthetic data especially created for this challenge. The next five symbols which we submit is scored on a ranking metric based on normalized discounted cumulative gain (NDCG)
+%\footnote{\href{https://en.wikipedia.org/wiki/Discounted\_cumulative\_gain\#Normalized\_DCG}{NDCG on Wikipedia: https://en.wikipedia.org/wiki/Discounted\_cumulative\_gain\#Normalized\_DCG}}
 
-Let the test set be made of prefixes $y_{1},y_{2},..., y_{M}$ and the next symbols ranking submitted for $i^{th}$ prefix $y_{i}$ be $(\hat{a}^{i}_{1},...,\hat{a}^{i}_{5})$ sorted from more likely to less likely. The program evaluating the submissions has access to to $p(.|y_{i})$, i.e. the target probability distribution of possible next symbols given the prefix $y_{i}$. The NDCG is then
+Let the test set be made of prefixes $y_{1},y_{2},..., y_{M}$ and the next symbols ranking submitted for $i^{th}$ prefix $y_{i}$ be $(\hat{a}^{i}_{1},...,\hat{a}^{i}_{5})$ sorted from more likely to less likely. The program evaluating the submissions has access to $P(.|y_{i})$, i.e. the target probability distribution of possible next symbols given the prefix $y_{i}$. The NDCG is given by
 \begin{center}
-	$\displaystyle NDCG_{5}(\hat{a}^{i}_{1},...,\hat{a}^{i}_{5}) = \frac{\sum_{k=1}^{5}p(\hat{a}_{k}^{i}| y_{i}) / log_{2}(k+1)}{\sum_{k=1}^{5}p_{k} / log_{2}(k+1)} $  
-\end{center}
+	$\displaystyle NDCG_{5}(\hat{a}^{i}_{1},...,\hat{a}^{i}_{5}) = \frac{\sum_{k=1}^{5}P(\hat{a}_{k}^{i}| y_{i}) / log_{2}(k+1)}{\sum_{k=1}^{5}p_{k} / log_{2}(k+1)} $  
+\end{center} 
+where $p_{1} \geq p_{2} \geq  p_{3} \geq p_{4} \geq p_{5}$ are the top 5 values in the distribution $P(.|y_{i})$
 
-The competition uses real-world data from different fields like Natural Language Processing, Biology, Signal Processing, Software Verification. 
-
-We can use a Hidden Markov Model to model this problem, where the training sequences can be treated as discrete time observables (emission variables) and the unobserved latent states can be used to capture the intrinsic sequence structure. A hidden Markov model can be considered a generalization of a mixture model where the hidden variables which control the mixture component to be selected for each observation, are related through a Markov process rather than independent of each other. 
+We can use a Hidden Markov Model to model this problem, where the training sequences can be treated as discrete time observables (emission variables) and the unobserved latent states can be used to capture the intrinsic sequence structure. A Hidden Markov Model can be considered a generalization of a mixture model where the hidden variables which control the mixture component to be selected for each observation, are related through a Markov process rather than independent of each other. Alternatively, we can also model this as a simple probabilistic weighted automata whose weights have to be learned. 
 
 \begin{figure}[h]
-	\includegraphics[scale=0.2]{"hmm"}
-	\caption{A hidden Markov model, $x_{i}$ are the hidden variables and $y_{i}$ are the observables.}
+	\includegraphics[scale=0.6]{"nhmm"}
+	\caption{A hidden Markov model, $h_{i}$ are the hidden variables and $x_{i}$ are the observables.}
 \end{figure}
 
 \section{Methodology}
-While trying to fit the training sequences onto a HMM, we would like to learn the parameters of this graphical model. We will present two approaches that we explored, the first one is the Baum–Welch algorithm which uses the EM algorithm to find the maximum likelihood estimate of the parameters of a hidden Markov model given a set of observed feature vectors and the second one is using spectral methods.
+We will present three approaches that we explored in this paper. We modeled this problem as an HMM. First, we learned the parameters of the model from the training data sequences using Baum–Welch algorithm and then using Spectral methods. We also tried to fit the data onto higher order Hidden Markov Models -- with feedback edges, skip edges -- but found the improvement in accuracy to be negligible, and in some cases non-existent. Finally, we fit the data into a probabilistic finite automaton using spectral techniques.  We discuss each of the three approaches in the subsequent sections.
 
-\subsection{Baum-Welch Algorithm}
+\subsection{Notation}
+For the Hidden Markov model, we define the following notations
+\begin{itemize}
+	\item $h_{1}, h_{2}, ..., h_{t}$ are a sequence of discrete hidden states. Let the number of possible hidden states that $h_{t}$ can represent be $m$
+	      	      	      
+	\item $x_{1}, x_{2}, ..., x_{t}$ are a sequence of discrete observations. Let the number of possible observable states that a value $x_{t}$ can represent be $n$
+	      	      	      
+	\item  The state transitions is described by $T$, which is a homogeneous time independent stochastic transition matrix. 
+	      \begin{center}
+	      	$T = \left\lbrace a_{ij} \right\rbrace = P(h_{t}=j|h_{t-1}=i)$
+	      \end{center}
+	      	      	      
+	\item The emission of each of the states is described by $O$
+	      \begin{center}
+	      	$O = \left\lbrace b_{j}(x_{t}) \right\rbrace = P(x_{t}|h_{t}=j)$
+	      \end{center}
+	      	      	      
+	\item The initial state distribution is given by
+	      \begin{center}
+	      	$\vec \pi_{i} = P(h_{1}=i)$
+	      \end{center}
+\end{itemize}
 
-The Baum–Welch algorithm is used to find the unknown parameters of a hidden Markov model (HMM). It makes use of the forward-backward algorithm. Let $X_{t}$ be a discrete hidden random variable with $N$ possible values. We assume the $P(X_{t}|X_{t-1})$ is independent of time t. Let the state transitions be described by $A$ which is a homogeneous time independent stochastic transition matrix. 
-\begin{center}
-	$A = \left\lbrace a_{ij} \right\rbrace = P(X_{t}=j|X_{t-1}=i)$
-\end{center}
-The initial state distribution is given by
-\begin{center}
-	$\pi_{i} = P(X_{1}=i)$
-\end{center}
-Let the observation variables be $Y_{t}$ which can take one of $K$ possible values. Let $B$ describe the probability of a certain observation at time $t$ for a state $j$. The emission matrix is then defined as
-\begin{center}
-	$B = \left\lbrace b_{j}(y_{t}) \right\rbrace = P(Y_{t}=y_{t}|X_{t}=j)$
-\end{center}
+\section{Baum-Welch Algorithm}
+The Baum–Welch algorithm is used to find the the maximum likelihood estimate of unknown parameters of a hidden Markov model (HMM) given a set of observed feature vectors using the Expectation-Maximization (EM) algorithm. We assume the $P(h_{t}|h_{t-1})$ is independent of time $t$.
+
 A single observable sequence is given by 
 \begin{center}
-	$Y = (Y_{1}=y_{1},Y_{2}=y_{2},Y_{3}=y_{3},..,Y_{T}=y_{t})$
+	$X = (X_{1}=x_{1},X_{2}=x_{2},X_{3}=x_{3},..,X_{L}=x_{L})$
 \end{center}
 
-A Hidden Markov Model is completely parametrized by  $\theta = (A,B,\pi)$. The Baum–Welch algorithm finds a local maximum for $\theta^{*} = argmax_{\theta} P(Y|\theta)$, the HMM parameters $\theta$ that maximise the probability of the given observation sequence.
+A Hidden Markov Model is completely parameterized by  $\theta = (A,B,\vec \pi)$. The Baum–Welch algorithm finds a local maximum $\theta^{*} = argmax_{\theta} P(X|\theta)$ -- the HMM parameters $\theta$ that maximizes the probability of the given observation sequence.
  
-For finding the locally optimum $\theta$, it is randomly initialized as $(A, B, \pi)$. Since it has EM type updates, the Expectation step involves finding the forward and backward probabilities, which uses a dynamic programming algorithm to find the most likely states. The Maximization step then uses these probability values to estimate the parameters $\theta$ of the HMM.
+For finding the locally optimum $\theta$, it is randomly initialized as $(T, O, \vec \pi)$. Since it has EM type updates, the Expectation step involves finding the forward and backward probabilities, which uses a dynamic programming scheme of algorithm to find the most likely states. The Maximization step then uses these probability values to estimate the parameters $\theta$ of the HMM.
 
-\subsubsection{Forward Procedure}
-Let $\alpha_{i}(t)$ =$P(Y_{1}=y_{1},Y_{2}=y_{2},...,Y_{t}=y_{t},X_{t}={i}|\theta)$, which is the probability of seeing the output sequence $y_{1},y_{2},...,y_{t}$ and being in state $i$ at time $t$. This is found recursively by the following equations:
+\subsection{Forward Procedure}
+As discussed in \cite{rab1}, let $\alpha_{i}(t)$ =$P(x_{1},x_{2},...,x_{t},h_{t}={i}|\theta)$, which is the probability of seeing the output sequence $x_{1},x_{2},...,x_{t}$ and being in state $i$ at time $t$. This is found recursively by the following equations:
 
-\begin{center}
-	$\alpha_{i}(1)=\pi_{i} b_{i}(y_{1})$
-	
-	$\alpha_{j}(t+1)=b_{j}(y_{t+1}) \sum_{i=1}^{N}\alpha_{i}(t) a_{ij}$
-\end{center}
+\begin{align*}
+	\alpha_{i}(1)   & = \vec \pi_{i} b_{i}(x_{1})                         \\
+	\alpha_{j}(t+1) & = b_{j}(x_{t+1}) \sum_{i=1}^{N}\alpha_{i}(t) a_{ij} 
+\end{align*}
 
-\subsubsection{Backward Procedure}
-
-Let $\beta_{i}(t)=P(Y_{t+1}=y_{t+1},...,Y_{T}=y_{T}|X_{t}=i,\theta)$, which is the probability of the ending partial sequence $y_{t+1},...,y_{T}$ given the starting state $i$ at time $t$. $\beta_{i}(t)$ is found recursively by:
-\begin{center}
-	$\beta_{i}(T)=1$
-	$\beta_{i}(t)=\sum_{j=1}^N \beta_{j}(t+1) a_{ij} b_{j}(y_{t+1})$
-\end{center}
+\subsection{Backward Procedure}
+Let $\beta_{i}(t)=P(x_{t+1},...,x_{L}|h_{t}=i,\theta)$, which is the probability of the ending partial sequence $x_{t+1},...,x_{L}$ given the starting state $i$ at time $t$. $\beta_{i}(t)$ is found recursively by:
+\begin{align*}
+	\beta_{i}(L) & = 1                                                 \\
+	\beta_{i}(t) & = \sum_{j=1}^N \beta_{j}(t+1) a_{ij} b_{j}(x_{t+1}) 
+\end{align*}
  
-One problem is that in case of long sequences as required by the Sequence prediction challenge, the forward probability values can go to zero exponentially. The solution to this problem is provided in the implementation section by using a normalized version of the Forward Backward procedure.
+One problem is that in case of long sequences, as required by the Sequence prediction challenge, the forward probability values can go to zero exponentially. We addressed this problem by using a normalized version of the Forward-Backward procedure. We discuss this in detail in the implementation section.
 
-\subsubsection{Updates}
+\subsection{Updates}
+Define $\gamma_{i}(t)$ as the probability of being in a state $i$ at time $t$ given the observed sequence $X$ and the parameters $\theta$. As detailed in \cite{rab2}, it can be shown that
+\begin{align*}
+	\gamma_{i}(t) & = P(h_{t}=i|X,\theta) & = \frac{\alpha_{i}(t)\beta_{i}(t)}{\sum_{j=1}^N \alpha_{j}(t)\beta_{j}(t)} 
+\end{align*}
 
-Define $\gamma_{i}(t)$ which will be the probability of being in a state $i$ at time $t$ given the observed sequence $Y$ and the parameters $\theta$. It can be shown that
-\begin{center}
-	$\gamma_{i}(t)=P(X_{t}=i|Y,\theta) = \frac{\alpha_{i}(t)\beta_{i}(t)}{\sum_{j=1}^N \alpha_{j}(t)\beta_{j}(t)}$
-\end{center}
-Lets define $\xi_{ij}(t)$ as the probability of being in state $i$ and $j$ at times $t$ and $t+1$ respectively given the observed sequence $Y$ and parameters $\theta$ which can be shown to be equal to
-
-\begin{center}
-	$\xi_{ij}(t)=P(X_{t}=i,X_{t+1}=j|Y,\theta)$
-	$\xi_{ij}(t)=\frac{\alpha_{i}(t) a_{ij} \beta_{j}(t+1) b_{j}(y_{t+1})}{\sum_{k=1}^N \alpha_k(T)}$
-\end{center}
+Define $\xi_{ij}(t)$ as the probability of being in state $i$ and $j$ at times $t$ and $t+1$ respectively given the observed sequence $X$ and parameters $\theta$. This can be shown to be equal to
+\begin{align*}
+	\xi_{ij}(t) & = P(h_{t}=i,h_{t+1}=j|X,\theta)                                                       \\
+	\xi_{ij}(t) & = \frac{\alpha_{i}(t) a_{ij} \beta_{j}(t+1) b_{j}(x_{t+1})}{\sum_{k=1}^N \alpha_k(T)} 
+\end{align*}
 
 $\theta$ is updated with the following set of equations:
 
 \begin{center}
-	$\pi_{i}^* = \gamma_{i}(1)$
+	$\vec \pi_{i}^* = \gamma_{i}(1)$
 \end{center}
 which is the probability of state $i$ at time $1$.
 
 \begin{center}
-	$a_{ij}^*=\frac{\sum^{T-1}_{t=1}\xi_{ij}(t)}{\sum^{T-1}_{t=1}\gamma_{i}(t)}$
+	$a_{ij}^*=\frac{\sum^{L-1}_{t=1}\xi_{ij}(t)}{\sum^{L-1}_{t=1}\gamma_{i}(t)}$
 \end{center}
 which is the expected number of transitions from state $i$ to state $j$ compared to the expected total number of transitions away from state $i$.
 
 \begin{center}
-	$b_{i}^*(v_{k})=\frac{\sum^T_{t=1,o_{t}=v_{k}} \gamma_{i}(t)}{\sum^T_{t=1} \gamma_i(t)}$
+	$b_{i}^*(v_{k})=\frac{\sum^L_{t=1,o_{t}=v_{k}} \gamma_{i}(t)}{\sum^L_{t=1} \gamma_i(t)}$
 \end{center}
 
 $b_{i}^*(v_{k})$ is the expected number of times the output observations have been equal to $v_{k}$ while in state $i$ over the expected total number of times in state $i$. The updates are done until a desired level of convergence.
 
-\subsection{Spectral Learning of Hidden Markov Models}
+\section{Spectral Learning of Hidden Markov Models}
 The basic idea of this method is to discover the relationship between the observed states and the hidden states by spectral/Singular Value Decomposition methods that correlate the previous observations of a sequence to the future observations. When applied to learning HMM under a certain natural separation condition (a spectral condition), the algorithm is efficient in learning the model, without explicitly recovering the transition and the emission matrices.
 Drawing from the idea that we can represent the probability of sequences as a product of matrix operators, we define
 \begin{center}
-	$A_{x} = T.diag(O_{x,1}, O_{x,2}, ... , O_{x,m} )\ \ \forall x \in [1, T]$
+	$A_{x} = T.diag(O_{x,1}, O_{x,2}, ... , O_{x,m} )\ \ \forall x \in [1, n]$
 \end{center}
 
 For any intermediate position $t$ in a sequence, we have
@@ -122,11 +136,11 @@ For any intermediate position $t$ in a sequence, we have
 \end{center}
 where $\vec1_{m}$ is a vector of all ones.
 
-As explained in \cite{semen paper}, the algorithm requires that the HMM obeys the rank condition:
+As explained in \cite{slhmm}(a seminal work in this domain), the algorithm requires that the HMM obeys the rank condition:
 \begin{center}
 	$\vec\pi > 0\ \ \ element wise,\ and\ O\ and\ T\ are\ rank\ m$
 \end{center}
-Under the above condition, the HMMs allow an efficiently learnable parameterization that depends only on the observables. The representation of the HMM can be defined in terms of the following vectors and matrices:
+Under the above condition, the HMMs allow an efficiently learn-able parameterization that depends only on the observables. The representation of the HMM can be defined in terms of the following vectors and matrices:
 \begin{align*}
 	[P_{1}]_{i}       & = P[x_{1} = i]                                         \\
 	[P_{2,1}]_{i,j}   & = P[x_{2}=i, x_{1}=j]                                  \\
@@ -145,128 +159,247 @@ The observable representation of the HMM can then be defined as follows:
 
 When $P_{2,1}$ is rank $m$, 
 \begin{align*}
-B_{x} = GA_{x}G^{-1}
+	B_{x} = GA_{x}G^{-1} 
 \end{align*}
 where $G \in \mathbb{R}^{m \times m}$ is invertible, we have
 \begin{align*}
-B_{t:1} & = B_{x_{t}}B_{x_{t-1}}...B_{x_{1}} \\
-			 & = GA_{t}G^{-1}\ GA_{t-1}G^{-1}\ ...\ GA_{1}G^{-1} \\
-			 & = GA_{t}A_{t-1}\ ...\ A_{1}G^{-1}
+	B_{t:1} & = B_{x_{t}}B_{x_{t-1}}...B_{x_{1}}                \\
+	        & = GA_{t}G^{-1}\ GA_{t-1}G^{-1}\ ...\ GA_{1}G^{-1} \\
+	        & = GA_{t}A_{t-1}\ ...\ A_{1}G^{-1}                 
 \end{align*}
 Setting 
 \begin{align*}
-\vec b_{\infty} & = \vec 1^{T}G^{-1} \\
-\vec b_{1}      & = G\vec \pi 
+	\vec b_{\infty} & = \vec 1^{T}G^{-1} \\
+	\vec b_{1}      & = G\vec \pi        
 \end{align*}
 we have,
 \begin{align*}
-P[x_{1}, x_{2}, ..., x_{t}]  = \vec b_{\infty}B_{x_{t:1}} \vec b_{1} 
+	P[x_{1}, x_{2}, ..., x_{t}]  = \vec b_{\infty}B_{x_{t:1}} \vec b_{1} 
 \end{align*}
 
 We can obtain empirical estimates of $P_{1}, P_{2,1}, and \ P_{3,x,1}$  from the training data as follows:
 \begin{align*}
-[\hat{P_{2,1}}]_{i,j} & = \frac{count(x_{2} = i, x_{1} = j)}{N} \\
-[\hat{P_{3,x,1}}]_{i,j} & = \frac{count(x_{3} = i, x_{2} = x, x_{1} = j)}{ N}
+	[\hat{P_{2,1}}]_{i,j}   & = \frac{count(x_{2} = i, x_{1} = j)}{N}             \\
+	[\hat{P_{3,x,1}}]_{i,j} & = \frac{count(x_{3} = i, x_{2} = x, x_{1} = j)}{ N} 
 \end{align*}
 and uses these in place of the exact matrices which would have been obtained from the true model. This results in a small error $\epsilon$ that is bounded.
 
 Having represented the model as above, given a sequence prefix $x_{1}, x_{2}, ..., x_{t-1}$, we can calculate the conditional observation probability of the next element in the sequence as 
 \begin{align*}
-P[x_t | x_{1:t-1}] =  \frac{\vec b_{\infty}B_{x_{t}} \vec b_{t}}{\sum_{x} \vec b_{\infty}B_{x} \vec b_{t}}
+	P[x_t | x_{1:t-1}] =  \frac{\vec b_{\infty}B_{x_{t}} \vec b_{t}}{\sum_{x} \vec b_{\infty}B_{x} \vec b_{t}} 
 \end{align*}
 where $\vec b_{t}$ can be recursively calculated as
 \begin{align*}
-\vec b_{t} = \frac{B_{x_{t}}\vec b_{t-1}}{\vec b_{\infty}B_{x_{t-1}} \vec b_{t-1}}
+	\vec b_{t} = \frac{B_{x_{t}}\vec b_{t-1}}{\vec b_{\infty}B_{x_{t-1}} \vec b_{t-1}} 
 \end{align*}
-\section{Implementation}
-\subsection{Baum-Welch Algorithm}
-The Baum-Welch algorithm was written in Java language. Python was initially used but dropped since it had extremely slow performance\footnote{Baum-Welch speed comparison: http://www.math.univ-toulouse.fr/~agarivie/Telecom/code/index.php}. The following points describe the sequence of optimization we did.
 
-\begin{itemize}
-	\item Hmm learn\footnote{https://github.com/hmmlearn/hmmlearn} - a python based library which consisted algorithms for unsupervised learning and inference of Hidden Markov Models was first used to evaluate the accuracy of this method on the data sets. Hmm learn is also included in scikit, however this library took a lot of time learning the model using Baum-Welch. The number of input sequences were at least 20,000 for each problem and the number of hidden states was at least 4. For the smallest problem it took more than one day to train the model. For larger problems, the code took about 4 days to run and exited with out of memory errors - this library was not very useful for our problem.
-	      
+\section{Spectral Learning of Probabilistic Weighted Finite Automata}
+While spectral algorithm for learning HMM significantly improved the learning time of the model, it did little to improve the accuracy. We now discuss spectral learning of a probabilistic weighted finite automata as discussed in \cite{spectral}-- the techniques of which were derived from the seminal work \cite{slhmm} whose algorithm was discussed in the previous section.
+
+Let $\Sigma$ be a finite alphabet and $\sigma$ to denote an arbitrary symbol in $\Sigma$. The set of all finite strings over $\Sigma$ is denoted by $\Sigma^{*}$, where we write $\lambda$ for the empty string. Let $f:\Sigma^{*} \rightarrow \rm I\!R$ be a function over strings. The Hankel matrix of $f$ is a bi-infinite matrix $H_{f} \in \rm I\!R^{\Sigma^{*}x\Sigma^{*}}$ whose entries are defined as $H_{f}(u,v) = f(uv)$ for any $u, v \in \Sigma^{*}$. 
+
+Define finite sub-blocks of the bi-infinite Hankel Matrix using a basis $B = (P, S)$, where $P \subseteq \Sigma^{*}$ is a set of prefixes and $S \subseteq \Sigma^{*}$ a set of suffixes. Let $p = |P|$ and $s = |S|$, then the sub-block of $H_{f}$ defined by $B$ is the $p $x$ s$ matrix $H_{B} \in \rm I\!R^{PxS}$ with $H_{B}(u,v) = H_{f}(u,v) = f(uv)$ for any $u \in P$ and $v \in S$. Let $\lambda$ denote the empty string. Let $\Sigma' = \Sigma\cup\lambda$. The prefix-closure of basis $B$ is the basis $B' = (P', S)$, where $P' = P\Sigma'$. A basis $B = (P,S)$ is said to be p-closed if $P = P'\Sigma'$ for some $P'$ called the root of $P$. A Hankel matrix over a p-closed basis can be partitioned into $|\Sigma| + 1$ blocks of the same size. For any $\sigma \in \Sigma', H_{\sigma}$ is used to denote the sub-block of $H_{f}$ over the basis $(P\sigma, S)$. The sub-block $H_{\sigma} \in \rm I\!R^{
+	P\sigma xS}$ of $H_{f}$ is the $p$ × $s$ matrix defined by $H_{\sigma}(u,v) = H_{f}(u\sigma, v)$. Thus, if $B'$ is the prefix-closure of $B$, then for a particular ordering of the strings in $P'$ 
+
+\begin{center}
+	$H^{T}_{B'} = \left[ H_{\lambda}^{T} | H_{\sigma 1}^{T} | ... |H_{\sigma_{|\Sigma|}}^{T} \right] $
+\end{center}
+
+The rank of a function $f : \Sigma^{*} \rightarrow \rm I\!R$ is defined as the rank of its Hankel matrix, $rank(f) = rank(H_{f})$. A basis $B = (P,S)$ is complete for $f$ if the sub-block $H_{B}$ has full rank and we say that $H_{B}$ is a complete sub-block of $H_{f}$. The rank of $f$ is related to the number of states needed to compute $f$ with a weighted automaton, and the prefix-closure of a complete sub-block of $H_{f}$ contains enough information to compute this automaton. 
+
+To learn an automata realizing an approximation of a function $f : \Sigma^{*} \rightarrow \rm I\!R$ using a spectral algorithm, we will need to compute an estimate of
+a sub-block of the Hankel matrix $H_{f}$. In general such sub-blocks may be hard to
+obtain. However, in the case when $f$ computes a probability distribution over $\Sigma^{*}$ and we have access to a sample of i.i.d. examples from this distribution, estimates of subblocks of $H_{f}$ can be obtained efficiently. It can be shown that if $H = PS$ is a rank factorization, then the weighted finite automata $A = (\alpha_{1}, \alpha_{\infty}, (A_{\sigma}))$ is minimal for $f$ for 
+\begin{align*}				
+	\alpha{1}^{T}   & = h_{\lambda, S}^{T}S^{T} \\		
+	\alpha_{\infty} & = P^{T}h_{P,\lambda}      \\				
+	A_{\sigma}      & = P^{T}H_{\sigma}S^{T}    
+\end{align*}
+
+The spectral method is an efficient algorithm that implements the ideas of this result to find a rank factorization of a complete sub-block $H$ of $H_{f}$ and obtain from it a minimal weighted finite automata for $f$. Suppose $f : \Sigma^{*} \rightarrow \rm I\!R$ is an unknown function of finite rank $n$ and we want to compute a minimal weighted automata for it. Assume that $B = (P, S)$ is a complete basis for $f$. The algorithm receives as input: the basis $B$ and the values of $f$ on a set of strings $W$. The algorithm only needs a rank factorization of $H_{λ}$ to be able to apply the formulas given in above result. The compact SVD of a $p$x$s$ matrix $H_{\lambda}$ of rank $n$ is given by the expression $H_{\lambda} = U\Lambda V^{T}$, where $U \in \rm I\!R^{p\times n}, V \in \rm I\!R^{s\times n}$ are orthogonal matrices, and $\Lambda \in \rm I\!R^{n\times n}$ is a diagonal matrix containing the singular values of $H_{\lambda}$. The factorization is equivalent to $H_{\lambda} = (H_{\lambda}V)V^{T}$.
+
+With this factorization, equations from from above results are written as:
+\begin{align*}
+	\alpha_{1}^{T}  & = h^{T}_{\lambda,S}               \\
+	\alpha_{\infty} & = (H_{\lambda}V)^{T}h_{P,\lambda} \\		
+	A_{\sigma}      & = (H_{\lambda}V)^{T}H_{\sigma}V   
+\end{align*}
+
+These equations define the spectral learning algorithm. Forward and backward (empirical) probabilities for a probabilistic weighted finite automata can be recovered by computing an SVD on (empirical) string probabilities. Though state probabilities are non-observable, they can be recovered from observable quantities.
+
+\section{Implementation}
+The Baum-Welch algorithm was written in Java language. Python was initially used but dropped since it had extremely slow performance\footnote{\href{http://www.math.univ-toulouse.fr/~agarivie/Telecom/code/index.php}{Baum-Welch speed comparison: http://www.math.univ-toulouse.fr/~agarivie/Telecom/code/index.php}}. The following points describe the sequence of optimizations we performed.
+
+\begin{itemize}	      	      
+	\item We discovered our implementation of forward-backward algorithm to very slow, especially when the number of hidden states was high. We then tried using HMMLearn\footnote{\href{https://github.com/hmmlearn/hmmlearn}{HMMLearn source: https://github.com/hmmlearn/hmmlearn}} -- a python based library which consisted algorithms for unsupervised learning and inference of Hidden Markov Models -- in the hopes of making use of optimized code to gain efficiency. However, this library took a lot of time learning the model using Baum-Welch. The number of input sequences were at least 20,000 for each problem and the number of hidden states was at least 4. For the smallest problem it took more than one day to train the model. For larger problems, the code took about 4 days to run and exited with out of memory errors - this library was not very useful for our problem.
+	      	      	      	      	      
 	\item Due to the inefficient library, we implemented the Baum-Welch algorithm in Java. Since the number of observed sequences is large, we implemented a mini-batch type learning of Baum-Welch algorithm. The input sequences were broken into batches (about 10-50 per batch) and the HMM parameters were learned for a given batch. For the next mini-batch the HMM was initialized with $\theta$ obtained from the previous batch.
-	      
-	\item To get more stable and accurate solutions, we decreased contribution of the weight learned by later mini-batches by using weight smoothing.
-	      
+	      	      	      	      	      
+	\item To get more stable and accurate solutions, we decreased contribution of the weight learned by later mini-batches by using weight smoothing.	      	      	      	      
 	      \begin{center}
 	      	$\Theta_{n} = (1-\alpha_{n})\Theta_{n-1} + \alpha_{n} \theta_{n}$
-	      \end{center}
-	      
-	      Where $\alpha_{n}$ is $1/n$, $n$ is the number of the mini-batch. $\Theta_{n}$ is the weight of the HMM after learning $n$ batches, $\theta_{n}$ is the locally optimal set of weights learnt on the $n^{th}$ batch by Baum-Welch algorithm initialized at $\Theta_{n-1}$ 
-	      
-	      
+	      \end{center}     	      	      
+	      where $\alpha_{n}$ is $1/n$, $n$ is the number of the mini-batch. $\Theta_{n}$ is the weight of the HMM after learning $n$ batches, $\theta_{n}$ is the locally optimal set of weights learnt on the $n^{th}$ batch by Baum-Welch algorithm initialized at $\Theta_{n-1}$ 
+	      	      	      	      	      	      	      	      	      
 	\item For longer sequences, Baum-Welch algorithm is hard to use because the forward probability values quickly became very small and go out of range of float and double data-types. This leads to underflow problems in forward-backward algorithm. We tried solving the problem by using BigDecimal class of java which does exact arithmetic, but it was too slow hence could not be used. Another approach we tried was transforming the probabilities into corresponding logs, but there are terms in Baum-Welch which would then need computation of sum inside logs, hence this approach was not very useful.   
-	      
+	      	      	      	      	      
 	\item Baum-Welch was then modified  to prevent underflow, the idea is to normalize $\alpha_t(i)$ so that $\hat{\alpha}_{t}(i)$ - the normalized $\hat{\alpha}_{t}(i)$, would be proportional to $\alpha_{t}(i)$ and sum to 1 over all possible states. We can calculate the normalizers using the following equations. 
-	      
+	      	      	      	      	      
 	      \begin{center}
-	      	
-	      	$\sum_{i=1}^{N}\hat{\alpha}_{i}(t) = 1 , \hat{\alpha}_{t}(i) = \prod_{k=1}^t\eta_{k}\alpha_{t}(i)$ 
-	      	
-	      	$\prod_{k=1}^t\eta_{k}\alpha_{t}(i) = 1/\sum_{i=1}^N\alpha_{t}(i)$
-	      	
-	      \end{center}
+	      	$\sum_{i=1}^{N}\hat{\alpha}_{i}(t) = 1 , \hat{\alpha}_{t}(i) = \prod_{k=1}^t\eta_{k}\alpha_{t}(i)$ 	      		      		      		      	
+	      	$\prod_{k=1}^t\eta_{k}\alpha_{t}(i) = 1/\sum_{i=1}^N\alpha_{t}(i)$	      		      		      		      	
+	      \end{center}	      	      
 	      
-	      In the normalized Baum-Welch algorithm, we do a normalization at each step using the constants $\eta_{t}$ for both the forward and backward steps for all the values. The updates are done in using the regular formulae as described earlier.
-	       
+	\item In the normalized Baum-Welch algorithm, we do a normalization at each step using the constants $\eta_{t}$ for both the forward and backward steps for all the values. The updates are done in using the regular formulae as described earlier.
+	      
 \end{itemize}
 
-\subsection{Spectral learning}
-
-
+Spectral Learning algorithm for HMM requires the rank of $P_{21}$ to be $m$. Since the training data samples have an indicator state for end of sequence, the last row of the matrix was all zeroes as there is no transition from that state to any other state. We addressed this by treating the rank as a hyper-parameter and tweaking this to obtain better results. We used the rank as a hyperparameter while learning the WFA using spectral technique.
 
 \section{Results}
-
-\subsection{Baum-Welch algorithm}
-The following table summarizes the results obtained by Baum-Welch Algorithm on problem instances:
-
-0.79108801391721
-Total training time: 89785
-Total predicting time: 306902
-
+Table \ref{table:prob} describes the problem instances and their sizes in the competition.
 
 \begin{table}[h]
-\caption{Performance of Baum-Welch}
-\label{sample-table}
-\begin{center}
-\begin{tabular}{llll}\end{tabular}
-\end{center}
+	\caption{Problem sizes}
+	\label{table:prob}
+	\begin{center}
+		\begin{tabular}{llll}
+			\multicolumn{1}{c}{\bf Problem} & \multicolumn{1}{c}{\bf \#sequences} & \multicolumn{1}{c}{\bf \#symbols} & \multicolumn{1}{c}{\bf Test-Size} \\
+			\hline \\
+			0                               & 20000                               & 4                                 & 1000                              \\
+			1                               & 20000                               & 20                                & 5000                              \\
+			2                               & 20000                               & 10                                & 5000                              \\
+			3                               & 20000                               & 10                                & 5000                              \\
+			4                               & 5987                                & 33                                & 748                               \\
+		\end{tabular}
+	\end{center}
 \end{table}
 
+\subsection{Baum-Welch algorithm}
+Table \ref{table:bw} summarizes the results obtained by Baum-Welch Algorithm on problem instances. The number of hidden states used were one plus the number of problem symbols(one symbol for the end character). They were run on mini-batches of size 15 and 25 which produced similar accuracy. For smaller problems like problem 0 having only 4 symbols, we tried with hidden states upto hundred, in general the accuracy improved with the increase in number of hidden states. However we could not repeat the experiment for problems having more symbols since it took a long time to train on a problem. This was due to the probability matrices taking a long time to converge. 
 
+\begin{table}[h]
+	\caption{Baum-Welch performance}
+	\label{table:bw}
+	\begin{center}
+		\begin{tabular}{llll}
+			\multicolumn{1}{c}{\bf Problem} & \multicolumn{1}{c}{\bf Score} & \multicolumn{1}{c}{\bf \#hidden-states} & \multicolumn{1}{c}{\bf Training Time(s)} \\
+			\hline \\
+			0                               & 0.69                          & 5                                       & 43                                       \\
+			0                               & 0.92                          & 100                                     & 189                                      \\
+			1                               & 0.33                          & 21                                      & 11665                                    \\
+			1                               & 0.61                          & 100                                     & 187020                                   \\
+			2                               & 0.51                          & 11                                      & 33403                                    \\
+			3                               & 0.49                          & 11                                      & 39884                                    \\
+			4                               & 0.19                          & 34                                      & 255546                                   \\
+		\end{tabular}
+	\end{center}
+\end{table}
 
+This algorithm takes a very long time to train on problems when the number of symbols is large (more than 4 days) and performs poorly on those instances.
 
-We participated wither the team name "codeBlue" and our current competition rank is number 3!. \cite{hr}Thanks to Zhengli's untiring efforts and unparalleled intelligence$\longrightarrow\infty$:D. 
+\subsection{Spectral learning of HMM}
+The training time for this method was under 1 second for all the problems, which is a significant boost in training time over the previous approach. The results obtained are comparable, and in some cases better than, the ones obtained by inference using Baum-Welch algorithm. Table \ref{table:slhmm} gives a summary of the performance.
+
+\begin{table}[h]
+	\caption{Spectral Learning of HMM}
+	\label{table:slhmm}
+	\begin{center}
+		\begin{tabular}{ll}
+			\multicolumn{1}{c}{\bf Problem} & \multicolumn{1}{c}{\bf Score} \\
+			\hline \\
+			0                               & 0.87                          \\
+			1                               & 0.59                          \\
+			2                               & 0.49                          \\
+			3                               & 0.46                          \\
+			4                               & 0.36                          \\
+		\end{tabular}
+	\end{center}
+\end{table}
+
+\subsection{Spectral Learning of Weighted Finite Automata}
+This method performed really well and the training time is under 100 seconds for all instances. Table \ref{table:slwfa} gives a summary of the results obtained.
+
+\begin{table}[h]
+	\caption{Spectral Learning of WFA}
+	\label{table:slwfa}
+	\begin{center}
+		\begin{tabular}{lll}
+			\multicolumn{1}{c}{\bf Problem} & \multicolumn{1}{c}{\bf Score} & \multicolumn{1}{c}{\bf Hankel Rank} \\
+			\hline \\
+			0                               & 0.98                          & 24                                  \\
+			1                               & 0.87                          & 21                                  \\
+			2                               & 0.87                          & 21                                  \\
+			3                               & 0.82                          & 20                                  \\
+			4                               & 0.53                          & 21                                  \\
+		\end{tabular}
+	\end{center}
+\end{table}
+
+\begin{figure}[h]
+	\includegraphics[scale=0.6]{"results"}
+	\caption{Comparison of the above approaches (NDCG v/s Problem Number)}
+\end{figure}
+
+\subsection{Current standing in competition}
+
+We registered in the competition with the name \enquote{codeBlue}. At the time of writing this paper, our rank on the competition is 3 out of over 70 registered participants for the above subset of problems. The following are the top 6 teams from the leader-board.
 
 \begin{table}[h]
 	\caption{Leaderboard}
-	\label{sample-table}
+	\label{table:leaderboard}
 	\begin{center}
 		\begin{tabular}{lll}
 			\multicolumn{1}{c}{\bf Rank} & \multicolumn{1}{c}{\bf Team} & \multicolumn{1}{c}{\bf Score} \\
 			\hline \\
-			1                            & vha                          & 5.16                          \\
-			2                            & ToBeWhatYouWhatToBe          & 5.02                          \\
+			1                            & ushitora                     & 5.81                          \\
+			2                            & vha                          & 5.16                          \\
 			3                            & codeBlue                     & 4.75                          \\
-			4                            & ushitora                     & 3.81                          \\
+			4                            & ToBeWhatYouWhatToBe          & 4.62                          \\
 			5                            & JGR                          & 3.20                          \\
 			6                            & uwtacoma                     & 1.93                          \\
 		\end{tabular}
 	\end{center}
 \end{table}
 
-\newpage
+\section{Conclusion}
+In this paper, we presented a graphical models approach to predicting a discrete-time discrete-symbol sequence by modeling the problem as a Hidden Markov Model as well as a Probabilistic Weighted Automata. We used Baum-Welch and Spectral algorithm to learn HMM, and spectral techniques to construct the automata. Ad detailed in the results section, we found the training time to be significantly less with spectral techniques. Modeling the problem as a weighted automata yielded better results than HMM.
+
+%\newpage
 
 
 
 \begin{thebibliography}{9}
-
-\bibitem{hr} 
-Michel Goossens, Frank Mittelbach, and Alexander Samarin. 
-
-
+	\bibitem{rab1} 
+	Rabiner, L.R.; Juang, B.H. \enquote{An introduction to hidden markov models.} \textit{In IEEE ASSP Magazine, 1986. pp. 4–16.}
+			
+	\bibitem{rab2} 
+	Rabiner, L. R.. \enquote{A tutorial on hidden Markov models and selected applications in speech recognition}. \textit{In the Proceedings of IEEE, 1989. Vol. 77 Iss. 2, pp. 257-286.}
+		
+	\bibitem{bishop}
+	Bishop, C. M. \enquote{Pattern Recognition and Machine Learning}. \textit{New York: Springer, 2006. Print.}
+		
+	\bibitem{murphy}
+	Murphy, K. P. \enquote{Machine Learning: a Probabilistic Perspective}. \textit{MIT Press, 2012. Print.}
+		
+	\bibitem{slhmm}
+	Hsu, D.; Kakade, S.M.; Zhang, T. \enquote{A Spectra Algorithm for Learning Hidden Markov Models} \textit{In COLT, 2009}
+		
+	\bibitem{lmm}
+	Hsu, D.; Kakade, S.M. \enquote{Learning mixtures of spherical gaussians: moment methods and spectral decompositions} \textit{In the Proceedings of ITCS, 2013. pp. 11-20}	
+	
+	\bibitem{mixofd}	
+	Achlioptas, D.; McSherry, F. \enquote{On spectral learning of mixtures of distributions.} \textit{In COLT, 2005}
+		
+	\bibitem{generalMM}
+	Kannan, R.; Salmasian, H.; Vempala, S. \enquote{The spectral method for general mixture models.} \textit{In COLT, 2005.}
+		
+	\bibitem{momentmat}
+	Lindsay, B.G. \enquote{Moment matrices: applications in mixtures.} \textit{Annals of Statistics, 1989. Vol. 17, Iss. 2, pp. 722–740}
+	
+	\bibitem{spectral} 
+	Balle, B.; Carreras, X.; Luque, F.M.; Quattoni, A. \enquote{Spectral Learning of Weighted Automata A Forward-Backward Perspective} \textit{In Springer Journal on Machine Learning, 2014. Vol. 96, Iss. 1, pp. 33-63}
+	        
 \end{thebibliography}
-
 
 \end{document}

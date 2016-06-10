@@ -1,5 +1,4 @@
 #! /usr/bin/python
-# @author: karthik
 # @date: 20 May 2016
 # @date: 04 Jun 2016
 
@@ -87,101 +86,8 @@ class HMM(object):
     def emission_matrix(self):
         return self._emission_matrix
 
-    ##############################################################################
-    # Actions
-    ##############################################################################
-
-    def fit(self, sequences, rank_hyperparameter=None, verbose=False):
-        '''
-        Solve the learning problem with HMM.
-        @sequences: List of observed sequences (each of possible variable length) (list of np.array)
-        '''
-        # Set default value of rank-hyperparameter
-        rank_hyperparameter = self._num_hidden_states if rank_hyperparameter is None else rank_hyperparameter
-        # Generate list of triples to train on
-        triple_list = np.array([sequence[idx: idx+3] for sequence in sequences
-                           for idx in xrange(len(sequence)-2)], dtype=np.int)
-
-        # Parameter estimation
-        # Frequency based estimation
-        for sq in triple_list:
-            self._P_1[sq[0]] += 1
-            self._P_21[sq[1], sq[0]] += 1
-            self._P_3x1[sq[1], sq[2], sq[0]] += 1
-        # Normalization of P_1, P_21, P_3x1
-        norm = np.sum(self._P_1)
-        self._P_1 /= norm
-        # Normalize the joint distribution of P_21        
-        norm = np.sum(self._P_21)
-        self._P_21 /= norm
-        # Normalize the joint distribution of P_3x1
-        norm = np.sum(self._P_3x1)
-        self._P_3x1 /= norm
-
-        # Singular Value Decomposition
-        # Keep all the positive singular values
-        (U, _, V) = np.linalg.svd(self._P_21)
-        U = U[:, 0:rank_hyperparameter]
-        V = V[0:rank_hyperparameter, :]
-        # Compute b1, binf and Bx
-        # self.factor = (P_21^{T} * U)^{+}, which is used to accelerate the computation
-        p21tui = np.linalg.pinv(np.dot(self._P_21.T, U))
-        self._b_1 = np.dot(U.T, self._P_1)        
-        self._b_inf = np.dot(p21tui, self._P_1)
-        self._B_x = np.zeros((self._num_observed_states, rank_hyperparameter, rank_hyperparameter), dtype=np.float)        
-        for x in xrange(self._num_observed_states):
-            self._B_x[x] = np.dot(np.dot(U.T, self._P_3x1[x]), p21tui.T)
-
-    def predict(self, sequence_prefix):
-        '''
-        Predict the next element of the sequence given the prefix by running the forward algorithm
-        @sequence_prefix: Observed sequence prefix (np.array)
-        '''
-        
-        # classical EM prediction
-        '''
-        return np.sum(self._forward(sequence_prefix)[-1, :])  # check later
-        '''
-
-        # finding the total joint probability
-        '''
-        prob = self._b_1
-        for ob in sequence_prefix:
-            prob = np.dot(self._B_x[ob], prob)
-        prob = np.dot(self._b_inf.T, prob)
-        return prob
-        '''
-
-        # SL Prediction
-        # compute b_t
-        # b_t+1 = (B_x[xt] . b_t) / (b_inf.T . B_x[xt] . b_t)
-        b_t = self._b_1
-        for xt in sequence_prefix:
-            numerator = np.dot(self._B_x[xt],b_t)
-            b_t = numerator / np.dot(self._b_inf.T, numerator)
-        # calculate conditional prob
-        conditional_prob = {}
-        denominator = 0.0
-        for x in xrange(self._num_observed_states):
-            denominator += np.dot(self._b_inf.T, np.dot(self._B_x[x], b_t))
-        for next_char in xrange(self._num_observed_states):
-            numerator = np.dot(self._b_inf.T, np.dot(self._B_x[next_char], b_t))
-            conditional_prob[next_char] = numerator / denominator
-        return conditional_prob
-
-    def predict_joint(self, sequence_prefix):
-        prob = self._b_1
-        for ob in sequence_prefix:
-            prob = np.dot(self._B_x[ob], prob)
-        ret = {}
-        for x in xrange(self._num_observed_states):
-            ret[x] = np.dot(self._b_inf.T, np.dot(self._B_x[x], prob))
-        return ret
-
-        
-     
     ###############################################################
-    # Algorithims (from assignment 1 just in case)
+    # Algorithims (from assignment 1)
     ###############################################################
     def _forward(self, sequence):
         '''
@@ -207,6 +113,87 @@ class HMM(object):
             r[t-1, :] = np.multiply(self._emission_matrix[:, sequence[t]], r[t, :].T)
             r[t-1, :] = np.dot(self._transition_matrix, r[t-1, :])
         return r
+
+    ##############################################################################
+    # Actions
+    ##############################################################################
+
+    def fit(self, sequences, verbose=False):
+        '''
+        Solve the learning problem with HMM.
+        @sequences: List of observed sequences (each of possible variable length) (list of np.array)
+        '''
+        # Generate list of triples to train on
+        triple_list = np.array([sequence[idx: idx+3] for sequence in sequences
+                           for idx in xrange(len(sequence)-2)], dtype=np.int)
+
+        # Parameter estimation
+        # Frequency based estimation
+        for sq in triple_list:
+            self._P_1[sq[0]] += 1
+            self._P_21[sq[1], sq[0]] += 1
+            self._P_3x1[sq[1], sq[2], sq[0]] += 1
+        # Normalization of P_1, P_21, P_3x1
+        norm = np.sum(self._P_1)
+        self._P_1 /= norm
+        # Normalize the joint distribution of P_21        
+        norm = np.sum(self._P_21)
+        self._P_21 /= norm
+        # Normalize the joint distribution of P_3x1
+        norm = np.sum(self._P_3x1)
+        self._P_3x1 /= norm
+
+        # Set rank
+        rank_hyperparameter = np.linalg.matrix_rank(self._P_21)
+
+        # Singular Value Decomposition
+        # Keep all the positive singular values
+        (U, _, V) = np.linalg.svd(self._P_21)
+        U = U[:, 0:rank_hyperparameter]
+        V = V[0:rank_hyperparameter, :]
+        # Compute b1, binf and Bx
+        # self.factor = (P_21^{T} * U)^{+}, which is used to accelerate the computation
+        p21tui = np.linalg.pinv(np.dot(self._P_21.T, U))
+        self._b_1 = np.dot(U.T, self._P_1)        
+        self._b_inf = np.dot(p21tui, self._P_1)
+        self._B_x = np.zeros((self._num_observed_states, rank_hyperparameter, rank_hyperparameter), dtype=np.float)        
+        for x in xrange(self._num_observed_states):
+            self._B_x[x] = np.dot(np.dot(U.T, self._P_3x1[x]), p21tui.T)
+
+    def predict_BW(self, sequence_prefix):
+        return np.sum(self._forward(sequence_prefix)[-1,:])
+
+    def predict(self, sequence_prefix):
+        '''
+        Spectral Learning of HMM Prediction
+        Predict the next element of the sequence given the prefix by running the forward algorithm
+        @sequence_prefix: Observed sequence prefix (np.array)
+        '''
+
+        # compute b_t
+        # b_t+1 = (B_x[xt] . b_t) / (b_inf.T . B_x[xt] . b_t)
+        b_t = self._b_1
+        for xt in sequence_prefix:
+            numerator = np.dot(self._B_x[xt],b_t)
+            b_t = numerator / np.dot(self._b_inf.T, numerator)
+        # calculate conditional prob
+        conditional_prob = {}
+        denominator = 0.0
+        for x in xrange(self._num_observed_states):
+            denominator += np.dot(self._b_inf.T, np.dot(self._B_x[x], b_t))
+        for next_char in xrange(self._num_observed_states):
+            numerator = np.dot(self._b_inf.T, np.dot(self._B_x[next_char], b_t))
+            conditional_prob[next_char] = numerator / denominator
+        return conditional_prob
+
+    def predict_joint(self, sequence_prefix):
+        prob = self._b_1
+        for ob in sequence_prefix:
+            prob = np.dot(self._B_x[ob], prob)
+        ret = {}
+        for x in xrange(self._num_observed_states):
+            ret[x] = np.dot(self._b_inf.T, np.dot(self._B_x[x], prob))
+        return ret
     
     ######################################################
     # Model persistence
@@ -224,21 +211,31 @@ class HMM(object):
 
 
 def order_probabilities(probability_dict):
+    '''
+    order the symbols based on the probabilities supplied as a dictionary in decreaing order
+    @probability_dict: dict.
+    '''
     tuple_list = [(k,v) for k,v in probability_dict.iteritems()]
     tuple_list.sort(key=lambda x: x[1], reverse=True)  # sort on the probability value
     ordered_seq = [k for k,v in tuple_list]
     return ordered_seq
 
 def get_ranking(probabilities):
+    '''
+    obtain the ranked order of symbols given a the next state probability distribution
+    '''
     ranked_order = order_probabilities(probabilities)[:5]
     #replace the end of state sequence with -1
-    eos_state = max(ranked_order)
+    eos_state = max(ranked_order)  
     ranked_order = [str(x) if x != eos_state else str(-1) for x in ranked_order]
     ranking_str = '%20'.join(ranked_order)
     return ranking_str
 
 
 def load_training_data(training_file):
+    '''
+    load training data given file name
+    '''
     lines = []
     with open(training_file, 'r') as f:
         lines = f.readlines()
@@ -253,9 +250,12 @@ def load_training_data(training_file):
 
 
 def make_submission(problem_num=0):
+    '''
+    repeatedly make submissions to the spice website for a particular problem
+    '''
     problem_num = str(problem_num)
     user_id = '81'
-    name = 'thedarklord'
+    name = 'codeBlue_app2'
     url_base = 'http://spice.lif.univ-mrs.fr/submit.php?user=' + user_id + \
                 '&problem=' + problem_num + '&submission=' + name + '&'
 
@@ -315,11 +315,8 @@ def make_submission(problem_num=0):
 
 
 if __name__ == '__main__':
-    for i in range(0,9):
-        make_submission(i)
-    # training_file = 'codeBlue/data/0.spice.train'
-    # sequences, num_obs_states = load_training_data(training_file)
-    # model = HMM(num_obs_states, num_obs_states)
-    # model.fit(sequences)
+    #make_submission(0)
+    for i in range(0,5):
+      make_submission(i)
 
 
