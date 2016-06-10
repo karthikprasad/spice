@@ -200,26 +200,70 @@ In the normalized Baum-Welch algorithm, we do a normalization at each step using
 
 \section{Results}
 
-\subsection{Baum-Welch algorithm}
-The following table summarizes the results obtained by Baum-Welch Algorithm on problem instances:
-
-0.79108801391721
-Total training time: 89785
-Total predicting time: 306902
-
+Table 1 describes the problem instances and their sizes in the competition.
 
 \begin{table}[h]
-\caption{Performance of Baum-Welch}
+\caption{Problem sizes}
 \label{sample-table}
 \begin{center}
-\begin{tabular}{llll}\end{tabular}
+\begin{tabular}{llll}
+\multicolumn{1}{c}{\bf Problem}  &\multicolumn{1}{c}{\bf \#sequences} &\multicolumn{1}{c}{\bf \#symbols} &\multicolumn{1}{c}{\bf Test-Size}\\
+\hline \\
+0	&20000	&4 	&1000\\
+1	&20000	&20	&5000\\
+2	&20000	&10	&5000\\
+3	&20000	&10	&5000\\
+4	&5987	&33	&748\\
+\end{tabular}
 \end{center}
 \end{table}
 
+\subsection{Baum-Welch algorithm}
+Table 2 summarizes the results obtained by Baum-Welch Algorithm on problem instances. The number of hidden states used were one plus the number of problem symbols(one symbol for the end character). They were run on mini-batches of size 15 and 25 which produced similar accuracy. For smaller problems like problem 0 having only 4 symbols, we tried with hidden states upto hundred, in general the accuracy improved with the increase in number of hidden states. However we could not repeat the experiment for problems having more symbols since it took a long time to train on a problem. This was due to the probability matrices taking a long time to converge. 
 
+\begin{table}[h]
+\caption{Baum-Welch performance}
+\label{sample-table}
+\begin{center}
+\begin{tabular}{llll}
+\multicolumn{1}{c}{\bf Problem}  &\multicolumn{1}{c}{\bf Score} &\multicolumn{1}{c}{\bf \#hidden-states} &\multicolumn{1}{c}{\bf Training Time(s)}\\
+\hline \\
+0	&0.69	&5 		&43\\
+0	&0.92	&100 	&189\\
+1	&0.33	&21		&11665\\
+1	&0.61	&100	&187020\\
+2	&0.51	&11		&33403\\
+3	&0.49	&11		&39884\\
+4	&0.19	&34		&255546\\
+\end{tabular}
+\end{center}
+\end{table}
 
+This algorithm takes a very long time to train on problems when the number of symbols is large (more than 4 days) and performs poorly on those instances.
 
-We participated wither the team name "codeBlue" and our current competition rank is number 3!. \cite{hr}Thanks to Zhengli's untiring efforts and unparalleled intelligence$\longrightarrow\infty$:D. 
+\subsection{Spectral learning for weighted automata}
+
+This method performed really well and the training time is under 100 seconds for all instances. Table 3 gives a summary of the results obtained.
+
+\begin{table}[h]
+\caption{Spectral learning performance}
+\label{sample-table}
+\begin{center}
+\begin{tabular}{lll}
+\multicolumn{1}{c}{\bf Problem}  &\multicolumn{1}{c}{\bf Score} &\multicolumn{1}{c}{\bf Hankel Rank}\\
+\hline \\
+0	&0.98	&24\\
+1	&0.87	&21\\
+2	&0.87	&21\\
+3	&0.82	&20\\
+4	&0.53	&21\\
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{Current standing in competition}
+
+We registered in the competition with the name 'codeBlue' and our current rank in the competition is 3 out of over 70 registered participants. The following are the top 6 teams from the leader-board.
 
 \begin{table}[h]
 \caption{Leaderboard}
