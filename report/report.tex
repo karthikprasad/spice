@@ -1,15 +1,18 @@
 \documentclass[letterpaper]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{proceed2e}
 \usepackage[margin=1in]{geometry}
 \usepackage{times}
 \usepackage{graphicx}
 \title{Discrete Time Discrete Symbol Sequence Prediction Using HMM}
 \author{Zhengli Zhao, Karthik Prasad, Abhisaar Sharma} 
+
 \begin{document}
 \maketitle
-\begin{abstract}
-This paper describes our graphical-model approach to the data-oriented project “SPiCe” (Sequence PredictIction ChallengE). Hidden Markov model (HMM) is a statistical Markov model in which the system being modelled is assumed to be a Markov process with latent states and can be presented as the simplest Bayesian network. We show our approach in modelling the problem as a HMM and using learning techniques like Baum-Welch and Spectral learning to learn the parameters of this graphical model and make predictions. The predictions generated from our approach currently stands as rank 3 amongst all the participants on the leader-board.
 
+\begin{abstract}
+This paper describes our graphical-model approach to the data-oriented project “SPiCe” (Sequence PredictIction ChallengE). Hidden Markov model (HMM) is a statistical Markov model in which the system being modelled is assumed to be a Markov process with latent states and can be presented as the simplest Bayesian network. We show our approach in  the problem as a HMM and using learning techniques like Baum-Welch and Spectral learning to learn the parameters of this graphical model and make predictions. The predictions generated from our approach currently stands as rank 3 among all the participants on the leader-board.
 \end{abstract}
 
 \section{Introduction}
@@ -30,8 +33,7 @@ We can use a Hidden Markov Model to model this problem, where the training seque
 \end{figure}
 
 \section{Methodology}
-
-While trying to model the training sequence as an HMM, we would like to learn the parameters of this graphical model. We will present two approaches that we explored, the first one is the Baum–Welch algorithm which uses the EM algorithm to find the maximum likelihood estimate of the parameters of a hidden Markov model given a set of observed feature vectors and the second one is using spectral methods.
+While trying to fit the training sequences onto a HMM, we would like to learn the parameters of this graphical model. We will present two approaches that we explored, the first one is the Baum–Welch algorithm which uses the EM algorithm to find the maximum likelihood estimate of the parameters of a hidden Markov model given a set of observed feature vectors and the second one is using spectral methods.
 
 \subsection{Baum-Welch Algorithm}
 
@@ -81,9 +83,7 @@ One problem is that in case of long sequences as required by the Sequence predic
 
 Define $\gamma_{i}(t)$ which will be the probability of being in a state $i$ at time $t$ given the observed sequence $Y$ and the parameters $\theta$. It can be shown that
 \begin{center}
-$
-\gamma_{i}(t)=P(X_{t}=i|Y,\theta) = \frac{\alpha_{i}(t)\beta_{i}(t)}{\sum_{j=1}^N \alpha_{j}(t)\beta_{j}(t)}
-$
+$\gamma_{i}(t)=P(X_{t}=i|Y,\theta) = \frac{\alpha_{i}(t)\beta_{i}(t)}{\sum_{j=1}^N \alpha_{j}(t)\beta_{j}(t)}$
 \end{center}
 Lets define $\xi_{ij}(t)$ as the probability of being in state $i$ and $j$ at times $t$ and $t+1$ respectively given the observed sequence $Y$ and parameters $\theta$ which can be shown to be equal to
 
@@ -114,13 +114,43 @@ $b_{i}^*(v_{k})=\frac{\sum^T_{t=1,o_{t}=v_{k}} \gamma_{i}(t)}{\sum^T_{t=1} \gamm
 
 $b_{i}^*(v_{k})$ is the expected number of times the output observations have been equal to $v_{k}$ while in state $i$ over the expected total number of times in state $i$. The updates are done until a desired level of convergence.
 
-\subsection{Spectral learning}
+\subsection{Spectral Learning of Hidden Markov Models}
+The basic idea of this method is to discover the relationship between the observed states and the hidden states by spectral/Singular Value Decomposition methods that correlate the previous observations of a sequence to the future observations. When applied to learning HMM under a certain natural separation condition (a spectral condition), the algorithm is efficient in learning the model, without explicitly recovering the transition and the emission matrices.
+Drawing from the idea that we can represent the probability of sequences as a product of matrix operators, we define
+\begin{center}
+$A_{x} = T.diag(O_{x,1}, O_{x,2}, ... , O_{x,m} )\ \ \forall x \in [1, T]$
+\end{center}
+For any intermediate position $t$ in a sequence, we have
+\begin{center}
+$P[x_{1}, x_{2}, ..., x_{t}] = \vec1_{m}^{T}A_{xt}...A_{x1}\vec\pi$
+\end{center}
+where $\vec1_{m}$ is a vector of all ones.
+
+As explained in \cite{semen paper}, the algorithm requires that the HMM obeys the rank condition:
+\begin{center}
+$\vec\pi > 0\ \ \ element wise,\ and\ O\ and\ T\ are\ rank\ m$
+\end{center}
+Under the above condition, the HMMs allow an efficiently learnable parameterization that depends only on the observables. The representation of the HMM can be defined in terms of the following vectors and matrices:
+\begin{align*}
+[P_{1}]_{i} &= P[x_{1} = i] \\
+[P_{2,1}]_{i,j} &= P[x_{2}=i, x_{1}=j] \\
+[P_{3,x,1}]_{i,j} &= P[x_{3}=i, x_{2}=x, x_{1}=j] \quad \forall x \in [n]
+\end{align*}
+where $P_{1} \in \mathbb{R}^{n}, P_{2,1} \in \mathbb{R}^{n \times n}, P_{3,x,1} \in \mathbb{R}^{n \times n}$ are the marginal probabilities of the observation sequence singletons, pairs, and triplets.
+
+Performing a singular value decomposition on $P_{2,1}$, we obtain $U \in \mathbb{R}^{n \times m}$, $\Sigma \in \mathbb{R}^{m \times m}$, $V \in \mathbb{R}^{m \times n}$
+
+We can obtain the empirical estimates of the above matrices to define the observavble representation of the HMM as follows:
+\begin{align*}
+\vec b_{1} &= U^{T}P_{1} \\
+\vec b_{\infty} &= (P_{2,1}^{T}U)^{+}P_{1} \\
+B_{x} &= (U^{T}P_{3,x,1})(U^{T}P_{2,1})^{+} \quad \forall x \in [n]
+\end{align*}
 
 \section{Implementation}
-
 \subsection{Baum-Welch Algorithm}
 
-The Baum-Welch algorithm was written in Java language. Python was initially used but dropped since it had extremely slow performance\footnote{Baum-Welch speed comparison: http://www.math.univ-toulouse.fr/~agarivie/Telecom/code/index.php}. The following points describe the sequence of optimizations we did.
+The Baum-Welch algorithm was written in Java language. Python was initially used but dropped since it had extremely slow performance\footnote{Baum-Welch speed comparison: http://www.math.univ-toulouse.fr/~agarivie/Telecom/code/index.php}. The following points describe the sequence of optimization we did.
 
 \begin{itemize}
 \item Hmm learn\footnote{https://github.com/hmmlearn/hmmlearn} - a python based library which consisted algorithms for unsupervised learning and inference of Hidden Markov Models was first used to evaluate the accuracy of this method on the data sets. Hmm learn is also included in scikit, however this library took a lot of time learning the model using Baum-Welch. The number of input sequences were at least 20,000 for each problem and the number of hidden states was at least 4. For the smallest problem it took more than one day to train the model. For larger problems, the code took about 4 days to run and exited with out of memory errors - this library was not very useful for our problem.
@@ -170,7 +200,7 @@ Total predicting time: 306902
 \caption{Performance of Baum-Welch}
 \label{sample-table}
 \begin{center}
-\begin{tabular}{llll}\rhd\end{tabular}
+\begin{tabular}{llll}\end{tabular}
 \end{center}
 \end{table}
 
