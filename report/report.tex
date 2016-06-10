@@ -136,13 +136,48 @@ where $P_{1} \in \mathbb{R}^{n}, P_{2,1} \in \mathbb{R}^{n \times n}, P_{3,x,1} 
 
 Performing a singular value decomposition on $P_{2,1}$, we obtain $U \in \mathbb{R}^{n \times m}$, $\Sigma \in \mathbb{R}^{m \times m}$, $V \in \mathbb{R}^{m \times n}$
 
-We can obtain the empirical estimates of the above matrices to define the observavble representation of the HMM as follows:
+The observavble representation of the HMM can then be defined as follows:
 \begin{align*}
 	\vec b_{1}      & = U^{T}P_{1}                                                 \\
 	\vec b_{\infty} & = (P_{2,1}^{T}U)^{+}P_{1}                                    \\
 	B_{x}           & = (U^{T}P_{3,x,1})(U^{T}P_{2,1})^{+} \quad \forall x \in [n] 
 \end{align*}
 
+When $P_{2,1}$ is rank $m$, 
+\begin{align*}
+B_{x} = GA_{x}G^{-1}
+\end{align*}
+where $G \in \mathbb{R}^{m \times m}$ is invertible, we have
+\begin{align*}
+B_{t:1} & = B_{x_{t}}B_{x_{t-1}}...B_{x_{1}} \\
+			 & = GA_{t}G^{-1}\ GA_{t-1}G^{-1}\ ...\ GA_{1}G^{-1} \\
+			 & = GA_{t}A_{t-1}\ ...\ A_{1}G^{-1}
+\end{align*}
+Setting 
+\begin{align*}
+\vec b_{\infty} & = \vec 1^{T}G^{-1} \\
+\vec b_{1}      & = G\vec \pi 
+\end{align*}
+we have,
+\begin{align*}
+P[x_{1}, x_{2}, ..., x_{t}]  = \vec b_{\infty}B_{x_{t:1}} \vec b_{1} 
+\end{align*}
+
+We can obtain empirical estimates of $P_{1}, P_{2,1}, and \ P_{3,x,1}$  from the training data as follows:
+\begin{align*}
+[\hat{P_{2,1}}]_{i,j} & = \frac{count(x_{2} = i, x_{1} = j)}{N} \\
+[\hat{P_{3,x,1}}]_{i,j} & = \frac{count(x_{3} = i, x_{2} = x, x_{1} = j)}{ N}
+\end{align*}
+and uses these in place of the exact matrices which would have been obtained from the true model. This results in a small error $\epsilon$ that is bounded.
+
+Having represented the model as above, given a sequence prefix $x_{1}, x_{2}, ..., x_{t-1}$, we can calculate the conditional observation probability of the next element in the sequence as 
+\begin{align*}
+P[x_t | x_{1:t-1}] =  \frac{\vec b_{\infty}B_{x_{t}} \vec b_{t}}{\sum_{x} \vec b_{\infty}B_{x} \vec b_{t}}
+\end{align*}
+where $\vec b_{t}$ can be recursively calculated as
+\begin{align*}
+\vec b_{t} = \frac{B_{x_{t}}\vec b_{t-1}}{\vec b_{\infty}B_{x_{t-1}} \vec b_{t-1}}
+\end{align*}
 \section{Implementation}
 \subsection{Baum-Welch Algorithm}
 The Baum-Welch algorithm was written in Java language. Python was initially used but dropped since it had extremely slow performance\footnote{Baum-Welch speed comparison: http://www.math.univ-toulouse.fr/~agarivie/Telecom/code/index.php}. The following points describe the sequence of optimization we did.
