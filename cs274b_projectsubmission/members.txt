@@ -1,8 +1,0 @@
-CS274B - Spring 2016
-=====================
-
-Project Team Members:
----------------------
-Abhisaar Sharma : abhisaas
-Karthik Prasad : prasadkr
-Zhengli Zhao : zhengliz
